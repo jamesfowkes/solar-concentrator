@@ -1,7 +1,7 @@
 #ifndef _SENSORS_H_
 #define _SENSORS_H_
 
-static const int16_t THRESHOLD = 50;
+static const int16_t THRESHOLD = 40;
 
 struct sensors
 {
