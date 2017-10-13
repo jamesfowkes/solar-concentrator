@@ -36,6 +36,8 @@ MOTOR_AXIS& motor_get_axis(COORD coord);
 
 int16_t degrees_to_steps(COORD coord, int16_t degrees);
 
+bool motor_out_of_range(COORD coord);
+
 void motor_run();
 
 #endif

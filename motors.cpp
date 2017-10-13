@@ -15,8 +15,10 @@ static AccelStepper s_azimuth_motor(azimuth_fwd, azimuth_bck);
 
 static const int16_t AZIMUTH_MAX_DEGREES=181;
 static const int16_t AZIMUTH_MIN_DEGREES=-181;
-static const int16_t ELEVATION_MAX_DEGREES=95;
-static const int16_t ELEVATION_MIN_DEGREES=-95;
+static const int16_t ELEVATION_MAX_DEGREES=65;
+static const int16_t ELEVATION_MIN_DEGREES=-65;
+
+static bool s_oor_error[2];
 
 static MOTOR_AXIS s_elevation_axis = {
 	.name="elevation", .step=5,  .en=12, .dir=4, .home=A5, .min_limit=INT32_MIN, .max_limit=INT32_MAX, .motor=&s_elevation_motor
@@ -75,20 +77,10 @@ void motor_move(COORD coord, int32_t steps)
 
 	int32_t new_position = axis.motor->currentPosition() + steps;
 
-	if (position_within_limits(axis, new_position))
+	s_oor_error[coord] = !position_within_limits(axis, new_position);
+	if (!s_oor_error[coord])
 	{
 		axis.motor->moveTo(new_position);
-	}
-	else
-	{
-		Serial.print(axis.name);
-		Serial.print("OutOfRangeError: ");
-		Serial.print(new_position);
-		Serial.print("(");
-		Serial.print(axis.min_limit);
-		Serial.print(",");
-		Serial.print(axis.max_limit);
-		Serial.println(")");
 	}
 }
 
@@ -122,7 +114,7 @@ void motor_setup()
 	pinMode(s_elevation_axis.dir, OUTPUT);
 	pinMode(s_elevation_axis.home, INPUT_PULLUP);
 	s_elevation_axis.motor = &s_elevation_motor;
-	s_elevation_motor.setMaxSpeed(20);
+	s_elevation_motor.setMaxSpeed(50);
 	s_elevation_motor.setAcceleration(20);
 	s_elevation_axis.max_limit = degrees_to_steps(COORD_ELEVATION, ELEVATION_MAX_DEGREES);
 	s_elevation_axis.min_limit = degrees_to_steps(COORD_ELEVATION, ELEVATION_MIN_DEGREES);
@@ -149,6 +141,7 @@ void motor_setup()
 
 }
 
+bool motor_out_of_range(COORD coord) { return s_oor_error[coord]; }
 void motor_run()
 {
 	s_elevation_motor.run();
