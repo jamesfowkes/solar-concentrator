@@ -1,8 +1,10 @@
 #include <avr/pgmspace.h>
 
 #include <TaskAction.h>
+#include <AccelStepper.h>
 
 #include "sensors.h"
+#include "motors.h"
 
 static const SENSORS s_sensors = { .top_left=A3, .top_right=A2, .bot_left=A0, .bot_right=A1 };
 
@@ -33,6 +35,16 @@ static void debug_sensors()
 	print_sensor_reading("EL top", sensors_get_elevation_top(false));
 	print_sensor_reading("EL bottom", sensors_get_elevation_bottom(false));
 	print_sensor_reading("EL", sensors_get_elevation_state(false));
+
+	if (motor_is_home(COORD_ELEVATION))
+	{
+		Serial.println("Elevation home");
+	}
+
+	if (motor_is_home(COORD_AZIMUTH))
+	{
+		Serial.println("Azimuth home");
+	}
 }
 
 
@@ -57,6 +69,7 @@ void setup()
 	Serial.println();
 
 	sensors_setup(s_sensors);
+	motor_setup();
 }
 
 void loop()

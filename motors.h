@@ -28,8 +28,15 @@ enum coord
 typedef enum coord COORD;
 
 void motor_setup();
+
+void motor_set_homing_params(const COORD coord);
+void motor_set_normal_params(const COORD coord);
+
 void motor_enable_control(COORD coord, bool en);
-void motor_home(MOTOR_AXIS& axis);
+
+bool motor_is_home(COORD coord);
+void motor_home(COORD coord);
+
 void motor_move(COORD coord, int32_t steps);
 void motor_set_at_home(COORD coord);
 MOTOR_AXIS& motor_get_axis(COORD coord);

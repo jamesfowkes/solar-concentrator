@@ -8,11 +8,6 @@
 
 static const SENSORS s_sensors = { .top_left=A3, .top_right=A2, .bot_left=A0, .bot_right=A1 };
 
-/*static int16_t steps_to_degrees(int16_t steps)
-{
-	return ((steps * 360) + (MOTOR_MICROSTEPS / 2)) / MOTOR_MICROSTEPS;
-}*/
-
 static void print_sensor_reading(char const*const sensor, uint16_t reading)
 {
 	Serial.print(sensor);
@@ -61,7 +56,7 @@ static void debug_azimuth_motor()
 static void debug_task_fn(TaskAction * task)
 {
 	(void)task;
-	if (0) { debug_sensors(); }
+	if (1) { debug_sensors(); }
 	if (1) { debug_elevation_motor(); }
 	if (0) { debug_azimuth_motor(); }
 }
@@ -72,12 +67,24 @@ static void handle_move(COORD coord)
 	COORD_STATE state = (coord == COORD_AZIMUTH) ? sensors_get_azimuth_state(true) : sensors_get_elevation_state(true);
 	if (state == COORD_STATE_NEG)
 	{
-		//motor_move(coord, 1);
+		motor_move(coord, -degrees_to_steps(coord, 1));
 	}
 	else if (state == COORD_STATE_POS)
 	{
-		//motor_move(coord, -1);	
+		motor_move(coord, degrees_to_steps(coord, 1));
 	}
+}
+
+static void test_elevation_motor()
+{
+	motor_move(COORD_ELEVATION, degrees_to_steps(COORD_ELEVATION, 60));
+	while(motor_get_axis(COORD_ELEVATION).motor->distanceToGo()) { motor_run(); s_debug_task.tick(); }
+	
+	motor_move(COORD_ELEVATION, -degrees_to_steps(COORD_ELEVATION, 120));
+	while(motor_get_axis(COORD_ELEVATION).motor->distanceToGo()) { motor_run(); s_debug_task.tick(); }
+	
+	motor_move(COORD_ELEVATION, degrees_to_steps(COORD_ELEVATION, 60));
+	while(motor_get_axis(COORD_ELEVATION).motor->distanceToGo()) { motor_run(); s_debug_task.tick(); }
 }
 
 void setup()
@@ -96,36 +103,21 @@ void setup()
 	motor_setup();
 
 	motor_enable_control(COORD_ELEVATION, true);
-	motor_enable_control(COORD_AZIMUTH, false);
+	motor_enable_control(COORD_AZIMUTH, true);
 
+	motor_set_homing_params(COORD_ELEVATION);
 	motor_set_at_home(COORD_ELEVATION);
+	motor_set_normal_params(COORD_ELEVATION);
 
-	motor_move(COORD_ELEVATION, degrees_to_steps(COORD_ELEVATION, 90));
-	while(motor_get_axis(COORD_ELEVATION).motor->distanceToGo()) { motor_run(); s_debug_task.tick(); }
-	
-	motor_move(COORD_ELEVATION, -degrees_to_steps(COORD_ELEVATION, 180));
-	while(motor_get_axis(COORD_ELEVATION).motor->distanceToGo()) { motor_run(); s_debug_task.tick(); }
-	
-	motor_move(COORD_ELEVATION, degrees_to_steps(COORD_ELEVATION, 90));
-	while(motor_get_axis(COORD_ELEVATION).motor->distanceToGo()) { motor_run(); s_debug_task.tick(); }
-	
-	while(true)
-	{
-		motor_move(COORD_AZIMUTH, degrees_to_steps(COORD_AZIMUTH, 45));
-		while(motor_get_axis(COORD_AZIMUTH).motor->distanceToGo())
-		{
-			motor_run();
-			s_debug_task.tick();
-		}
-		delay(200);
-		motor_move(COORD_AZIMUTH, degrees_to_steps(COORD_AZIMUTH, -45));
-		while(motor_get_axis(COORD_AZIMUTH).motor->distanceToGo())
-		{
-			motor_run();
-			s_debug_task.tick();
-		}
-		delay(200);
-	}
+	Serial.print("Checking elevation movement...");
+	test_elevation_motor();
+	Serial.println("done.");
+
+	Serial.print("Homing Azimuth...");
+	motor_set_homing_params(COORD_AZIMUTH);
+	motor_home(COORD_AZIMUTH);
+	Serial.println("done.");
+	motor_set_normal_params(COORD_AZIMUTH);
 
 	sensors_setup(s_sensors);
 }

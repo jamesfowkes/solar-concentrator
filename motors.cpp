@@ -44,11 +44,6 @@ static void elevation_bck() { set_direction(s_elevation_axis.dir, false), step(s
 static void azimuth_fwd() { set_direction(s_azimuth_axis.dir, true), step(s_azimuth_axis); }
 static void azimuth_bck() { set_direction(s_azimuth_axis.dir, false), step(s_azimuth_axis); }
 
-static bool is_home(const MOTOR_AXIS& axis)
-{
-	return digitalRead(axis.home) == LOW;
-}
-
 static bool position_within_limits(const MOTOR_AXIS& axis, int32_t pos)
 {
 	bool at_past_upper_limit = (pos >= axis.max_limit);
@@ -62,7 +57,46 @@ static void motor_set_at_home(MOTOR_AXIS& axis)
 	axis.motor->setCurrentPosition(0);
 }
 
+static bool motor_is_home(const MOTOR_AXIS& axis)
+{
+	return digitalRead(axis.home) == LOW;
+}
+
+static void motor_stop(const MOTOR_AXIS& axis)
+{
+	axis.motor->stop();
+	while(axis.motor->isRunning()) { axis.motor->run(); }
+}
+
 /* Public Functions */
+
+void motor_set_homing_params(const COORD coord)
+{
+	if (coord == COORD_ELEVATION)
+	{
+		s_elevation_motor.setMaxSpeed(50);
+		s_elevation_motor.setAcceleration(200);
+	}
+	else
+	{
+		s_azimuth_motor.setMaxSpeed(200);
+		s_azimuth_motor.setAcceleration(500);
+	}
+}
+
+void motor_set_normal_params(const COORD coord)
+{
+	if (coord == COORD_ELEVATION)
+	{
+		s_elevation_motor.setMaxSpeed(50);
+		s_elevation_motor.setAcceleration(200);
+	}
+	else
+	{
+		s_azimuth_motor.setMaxSpeed(1000);
+		s_azimuth_motor.setAcceleration(500);
+	}
+}
 
 MOTOR_AXIS& motor_get_axis(COORD coord)
 {
@@ -76,7 +110,6 @@ void motor_move(COORD coord, int32_t steps)
 	MOTOR_AXIS& axis = motor_get_axis(coord);
 
 	int32_t new_position = axis.motor->currentPosition() + steps;
-
 	s_oor_error[coord] = !position_within_limits(axis, new_position);
 	if (!s_oor_error[coord])
 	{
@@ -92,13 +125,30 @@ void motor_set_at_home(COORD coord)
 
 void motor_home(COORD coord)
 {
+	motor_set_homing_params(coord);
 	MOTOR_AXIS& axis = motor_get_axis(coord);
-
-	while(!is_home(axis))
+	while(!motor_is_home(axis))
 	{
-		motor_move(coord, 1);
+		motor_move(coord, degrees_to_steps(coord, 90));
+		while(axis.motor->distanceToGo())
+		{
+			axis.motor->run();
+			if (motor_is_home(axis))
+			{
+				motor_stop(axis);
+			}
+		}
 	}
-	motor_set_at_home(axis);	
+	if (motor_is_home(axis))
+	{
+		motor_set_at_home(axis);
+	}
+}
+
+bool motor_is_home(COORD coord)
+{
+	MOTOR_AXIS& axis = motor_get_axis(coord);
+	return motor_is_home(axis);
 }
 
 void motor_enable_control(COORD coord, bool en)
@@ -142,6 +192,7 @@ void motor_setup()
 }
 
 bool motor_out_of_range(COORD coord) { return s_oor_error[coord]; }
+
 void motor_run()
 {
 	s_elevation_motor.run();
